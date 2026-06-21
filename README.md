@@ -1,5 +1,18 @@
 # A Chain-Agnostic Post-Quantum Cryptography Layer
 
+## Overview & Use Case
+
+`core_kms` provides a single, chain-agnostic layer for post-quantum-safe
+signing and hybrid encryption that can be used by any blockchain integration
+without changing the underlying cryptography. It addresses two complementary
+risk models: preventing "harvest-now, decrypt-later" secrecy loss for
+long-lived data, and providing post-quantum-resistant transaction
+authentication where chains do not (and will not soon) natively support
+PQC signatures. Typical use cases include protecting legally-sensitive
+settlement terms, custody data, and multi-decade records, as well as
+enabling PQC migration paths for existing ledgers via adapters or oracle
+patterns.
+
 ## Mathematical overview
 
 This project uses a hybrid cryptographic construction that combines a classical
@@ -17,9 +30,9 @@ and authentication tag. This hybrid approach provides defense-in-depth: even
 if one primitive is weakened in the future, the combined construction retains
 security provided the other primitive remains hard to break.
 
-Signatures use the ML-DSA-65 scheme for post-quantum authentication; message
-signing and verification follow the standard API shape $\mathrm{Sign}_{sk}(m)$
-and $\mathrm{Verify}_{pk}(m,\sigma)$ as implemented in `core_kms`.
+Signatures use the ML-DSA-65 scheme for post-quantum authentication; transaction
+signing and verification follow the standard API shape `Sign_sk(m)` and
+`Verify_pk(m, sigma)` as implemented in `core_kms`.
 
 A brief sequence for encryption:
 
