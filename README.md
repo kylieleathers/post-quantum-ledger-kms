@@ -8,7 +8,8 @@ mechanism (ML-KEM-768). The two shared secrets are concatenated and fed into
 an HKDF to derive a symmetric key used with AES-256-GCM for confidentiality.
 
 - Classical shared secret: $s_1 = \mathrm{ECDH}(sk_{eph}, pk_{recip})$
-- PQC shared secret: $s_2 = \mathrm{Decaps}(sk_{recip}, c)$
+- PQC shared secret (sender/encrypt side): $(c, s_2) = \mathrm{Encaps}(pk_{recip})$
+- PQC shared secret (recipient/decrypt side): $s_2 = \mathrm{Decaps}(sk_{recip}, c)$
 - Symmetric key derivation: $K = \mathrm{HKDF}(s_1 \| s_2, \mathrm{info})$
 
 The resulting key $K$ is used with an AEAD (AES-256-GCM) to produce ciphertext
@@ -23,10 +24,12 @@ and $\mathrm{Verify}_{pk}(m,\sigma)$ as implemented in `core_kms`.
 A brief sequence for encryption:
 
 $$
-s_1 = \mathrm{ECDH}(sk_{eph}, pk_{recip}),\qquad s_2 = \mathrm{Decaps}(sk_{recip}, c)\\
+s_1 = \mathrm{ECDH}(sk_{eph}, pk_{recip}),\qquad (c, s_2) = \mathrm{Encaps}(pk_{recip})\\
 K = \mathrm{HKDF}(s_1\|s_2,\mathrm{info}),\\
 \mathrm{ciphertext} = \mathrm{AES\text{-}GCM}_K(\mathrm{nonce},\mathrm{plaintext})
 $$
+
+Decryption mirrors this with the recipient's private keys: $s_1 = \mathrm{ECDH}(sk_{recip}, pk_{eph})$, $s_2 = \mathrm{Decaps}(sk_{recip}, c)$, then the same $K = \mathrm{HKDF}(s_1\|s_2,\mathrm{info})$ recovers the plaintext.
 
 A short rationale: combining classical ECDH with a PQC KEM gives immediate
 interoperability with existing systems (ECDH) while adding quantum-resistant
