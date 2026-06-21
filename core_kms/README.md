@@ -1,7 +1,3 @@
-# core-kms
-
-The chain-agnostic layer.
-
 ## Package: `com.corekms`
 
 Core key generation, signing, verification, and hybrid encryption functions 
