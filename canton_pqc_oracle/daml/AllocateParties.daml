@@ -1,0 +1,13 @@
+module AllocateParties where
+
+import Daml.Script
+
+allocate : Script ()
+allocate = do
+  alice <- allocatePartyWithHint "alice" (PartyIdHint "alice")
+  oracle <- allocatePartyWithHint "oracle" (PartyIdHint "oracle")
+  bob <- allocatePartyWithHint "bob" (PartyIdHint "bob")
+  debug alice
+  debug oracle
+  debug bob
+  pure ()

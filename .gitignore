@@ -1,0 +1,26 @@
+.env
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Java / Maven / sbt
+target/
+.classpath
+.project
+.settings/
+
+# Daml / Canton
+.daml/
+daml/log/
+*.log
+
+# Foundry
+out/
+cache/
+broadcast/
+**/contracts/lib/
+
+# Editor / OS
+.vscode/
+.DS_Store

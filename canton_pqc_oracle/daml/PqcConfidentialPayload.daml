@@ -1,0 +1,27 @@
+module PqcConfidentialPayload where
+
+-- Canton workflow for hybrid (X25519 + ML-KEM-768) encrypted payloads,
+-- mirroring the EVM version (PqcConfidentialPayload.sol). Carries only
+-- opaque hex-encoded ciphertext — Canton's protocol never needs to
+-- understand X25519 or ML-KEM.
+--
+-- Unlike the EVM version, `observer recipient` means only sender and
+-- recipient ever see this contract — third parties don't receive the
+-- ciphertext bytes at all, not just lack the keys to decrypt them.
+template PqcConfidentialPayload
+  with
+    sender : Party
+    recipient : Party
+    ephemeralXPubHex : Text
+    kemEncapsulationHex : Text
+    nonceHex : Text
+    aesCiphertextHex : Text
+  where
+    signatory sender
+    observer recipient
+
+    -- Recipient archives once they've fetched and decrypted off-ledger via core_kms.
+    choice Acknowledge : ()
+      controller recipient
+      do
+        pure ()

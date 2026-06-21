@@ -1,0 +1,29 @@
+# Example canton.conf fragment for a NEW participant bootstrapped with
+# Entrust-backed keys. Do not apply this to an already-running participant
+# (e.g. ntr) — the namespace key cannot be migrated in place; this is for a
+# fresh participant whose namespace key will be generated inside Entrust
+# from the start.
+
+canton.participants.entrust-backed-participant {
+  storage {
+    type = postgres
+    # ... regular DB connection config — note this still holds ledger data,
+    # just not the private key material for namespace/identity/signing/
+    # encryption keys, which now live in Entrust instead.
+  }
+
+  crypto {
+    provider = kms
+    kms {
+      type = driver
+      name = "entrust-nshield"
+      config {
+        pkcs11-library-path = "/opt/nfast/toolkits/pkcs11/libcknfast.so"
+        slot-id = 0
+        # Prefer sourcing this from an environment variable or external
+        # secrets manager rather than committing it to a conf file.
+        hsm-pin = ${ENTRUST_HSM_PIN}
+      }
+    }
+  }
+}

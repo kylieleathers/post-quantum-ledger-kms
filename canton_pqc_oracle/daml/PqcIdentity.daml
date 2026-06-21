@@ -1,0 +1,62 @@
+module PqcIdentity where
+
+-- Authorization to create these contracts still goes through the party's
+-- normal classical Canton key — the ML-DSA fields below are just ledger
+-- data as far as Canton's protocol is concerned. Verifying them is the
+-- oracle's job, not Canton's.
+
+-- Registers a party's ML-DSA public key (held by EntrustHsmKmsDriver) as
+-- ordinary ledger data. publicKeyB64 is base64-encoded raw ML-DSA-65.
+template PqcIdentity
+  with
+    party : Party
+    publicKeyB64 : Text
+  where
+    signatory party
+
+    key party : Party
+    maintainer key
+
+-- A request that some payload was authorized by `party`'s ML-DSA key.
+-- `oracle` is the party expected to verify it.
+template PqcAttestationRequest
+  with
+    party : Party
+    oracle : Party
+    payloadHashB64 : Text
+    signatureB64 : Text
+  where
+    signatory party
+    observer oracle
+
+    -- Oracle calls this after independently verifying signatureB64 against
+    -- the PqcIdentity contract's publicKeyB64 (off-ledger, via
+    -- EntrustHsmKmsDriver.verify). Canton only enforces that oracle signed
+    -- this with its own classical key — it has no idea whether the ML-DSA
+    -- check itself was correct.
+    choice Accept : ContractId PqcAttestation
+      controller oracle
+      do
+        create PqcAttestation with
+          party
+          oracle
+          payloadHashB64
+          verifiedAt = ()  -- placeholder; replace with a real Time field if ordering matters downstream
+
+    choice Reject : ()
+      controller oracle
+      do
+        pure ()
+
+-- The actual gate downstream workflow contracts should check for via a
+-- `fetchByKey`/`ensure` precondition before treating a PQC-signed payload
+-- as authorized.
+template PqcAttestation
+  with
+    party : Party
+    oracle : Party
+    payloadHashB64 : Text
+    verifiedAt : ()
+  where
+    signatory oracle
+    observer party

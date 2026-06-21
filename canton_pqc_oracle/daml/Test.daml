@@ -1,0 +1,58 @@
+module Test where
+
+import Daml.Script
+import DA.Assert
+import DA.List (head)
+import PqcConfidentialPayload
+
+-- Real ciphertext from core_kms's HybridCipher (X25519 + ML-KEM-768), via
+-- anvil_pqc_adapter/cli, encrypting "settlement amount: 50000 USD,
+-- instrument ISIN US0378331005".
+testEphemeralXPubHex : Text
+testEphemeralXPubHex = "302a300506032b656e0321000a3fb7bbf2dd2c5f8a3cc00899d5df48f2e461866a19870d7a87c08429047c43"
+
+testKemEncapsulationHex : Text
+testKemEncapsulationHex = "ce79a5b38dbe861752feefacdfbba059168b91326f408b68b163ae8db5f2993fd629f6988b14b62cc1a21516dcc1b2dd3b17343054524cb544349e28d1f29c3f34cef1c0591d858533c9dab12983354b8a7a608e0a99025596cee7515c925b9b123c668fb9d99eb5539fc6c77175399e40c4363bf2b0776c78b648de97a6c7a9721ea83ba87e2aac872eb30ed3628c68aad16cc91e77e3e20c0c67e8d6c886bd8ba17e5b8eee979ba8607502ecde6a5c3bf48029b32824cf53871ee1178d3a418b3243224b807457cccf3ea1e5606781052fcf606af3ddebbf265ae6785418df5da023e8db5c67be548e168aa41a9c7c095e20d15f291869e3a6efe56cb2ac7a8a0834862ac46ed1faa048c327df356fd730d3ad653a193b9e27746ef9995754191da59fdd4a9d6a239541bc6f5ad9663240d12a7c2b7d7c29c638e94366caa3de6a78d09fd158547659801a076ada615646e652baa549ce684db1d8fe3ee7e04ff5ec0c002accf5a8c50b96016805e0cf0ea2cf59d30af53e33f719ef54f09f54ab1e88ee0d3609b3a9a04cc58f819002c1986a0836f9788b97dd21dca9f9009d3cdd3fbe374e7404af2d8da7cf0353857dc6a7362f3d17b376a1d01e2f70fef1d39392fe2ef979340c86e395614ada16ff9e726c2a91762a7086fa7382cd5004a2d9f3c5b21aa0f5cb5aaf5ec7a9abc607dfbf525140e3bd9b8e7e217a5699f6a4dfcc3573e5108e1c19a181b9b2e8a6482d053b0a206144d066637a3f330804899c26b215b1f861872b09ae2605b6d12e2e9619d901536584c3b7454cd23d10efbb578f78f0f9355897b1317ae757231736821323d3a77e3ddf19de3ce4aac4a054c86d752a4af14afc3b930760c6c375aed9d4daab5eb36ca6b4074f7b1a9ebad7c30c03f66a5f7eca9329dd4a74bbc3912e4911a5d45c7e4f6abc139cc812462da985d8e09175f4980fc3749577f4a86283375bd441acd90a01ab68588e4429e894b216b1e04474a5bde93dcab3aca31160236252be3429258f7edccb780020d3bdf901aab9130e01f0af6870d11ab2de69db8de2ad694d40775a5a11d9c8d59c03c6d603a6526459ba9862bd1ae50d9fc178b39b0e9f05ead2ccafb5af492c9bdfbc358c4d636514703ff4d2b713152a34afce95fc9efd4478ffc2b833d82b78438fa8007522c3f3ac0dc8fe5b4ff16c1f45516b41dbb3ff5b83c6b2116f6744d0d5019e2571946ed41bb2f15294ee5c99926d26e38221339f4555d9b2f65bd15e2a259fcf134270948bf74b219fb34a048ab177358b1289e0b0ba04fc581e96455f411d6f35f1bee9b715429a9800c2565277047eb728826c90c984f8764a3709063d177204af6135259bf1f0a12e64b92b580623c89df6b438c0da1d5e19cc079a21890ef48994a02c4c055986ee3e392e94bc5b9580b6119ab8445546749564869c784fc4d9cec18cfeabad3a7423267fd950627da8ff5f1762f6ce8cc1ef88af664c350ba1f85266d05e018b382d10c0665c2aedd1c8ec38d36a51"
+
+testNonceHex : Text
+testNonceHex = "3338a5278c02db780ab22c75"
+
+testAesCiphertextHex : Text
+testAesCiphertextHex = "ed0831211f8a01ecf0b2e28986a53f2ac9a011c3f05467334a75bc343bd0f6d0123fe459a9ef1a290efd4511778cd4e84baf38de2615adbd1d8924e959560e75767aae776f442c4b588b"
+
+-- Proves two things:
+--  1. The contract carries real core_kms-produced ciphertext correctly.
+--  2. Canton's privacy model means a third, uninvolved party never even
+--     receives this contract (unlike the Anvil version, where the bytes
+--     are publicly visible to anyone watching the chain).
+test_confidentialPayload : Script ()
+test_confidentialPayload = do
+  sender <- allocateParty "Sender"
+  recipient <- allocateParty "Recipient"
+  thirdParty <- allocateParty "ThirdParty"
+
+  cid <- submit sender do
+    createCmd PqcConfidentialPayload with
+      sender = sender
+      recipient = recipient
+      ephemeralXPubHex = testEphemeralXPubHex
+      kemEncapsulationHex = testKemEncapsulationHex
+      nonceHex = testNonceHex
+      aesCiphertextHex = testAesCiphertextHex
+
+  recipientView <- query @PqcConfidentialPayload recipient
+  length recipientView === 1
+
+  thirdPartyView <- query @PqcConfidentialPayload thirdParty
+  length thirdPartyView === 0
+
+  -- Sanity-check the fields the recipient sees match what was sent.
+  let (_, payload) = head recipientView
+  payload.aesCiphertextHex === testAesCiphertextHex
+  payload.nonceHex === testNonceHex
+
+  -- Recipient archives after decrypting off-ledger via core_kms.
+  submit recipient do
+    exerciseCmd cid Acknowledge
+
+  pure ()
